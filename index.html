@@ -1,0 +1,851 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SCFHS Emergency Triage Matrix & Clinical Simulator</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        navy: {
+                            800: '#1e293b',
+                            900: '#0f172a',
+                        },
+                        emerald: {
+                            500: '#10b981',
+                            600: '#059669',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+        .tab-active { border-bottom: 3px solid #10b981; color: #10b981; font-weight: 600; }
+        .custom-scrollbar::-webkit-scrollbar { width: 6px; height: 6px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: #1f2937; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #4b5563; border-radius: 3px; }
+    </style>
+</head>
+<body class="bg-slate-900 text-slate-100 min-h-screen flex flex-col font-sans antialiased selection:bg-emerald-500 selection:text-white">
+
+    <!-- TOP HEADER -->
+    <header class="bg-slate-950 border-b border-slate-800 sticky top-0 z-50">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3 flex flex-col md:flex-row items-center justify-between gap-4">
+            <div class="flex items-center space-x-3">
+                <div class="bg-emerald-500 text-slate-950 p-2 rounded-lg font-extrabold text-xl tracking-wider">
+                    SCFHS
+                </div>
+                <div>
+                    <h1 class="text-lg font-bold text-white leading-tight">Emergency Triage Matrix & Simulator</h1>
+                    <p class="text-xs text-slate-400">Saudi Commission for Health Specialties • Clinical Exam Prep</p>
+                </div>
+            </div>
+
+            <!-- MODE SWITCHER TABS -->
+            <div class="flex bg-slate-900 p-1 rounded-xl border border-slate-800 text-sm">
+                <button id="tab-matrix-btn" onclick="switchTab('matrix')" class="px-4 py-2 rounded-lg font-medium transition-all duration-200 text-emerald-400 bg-slate-800 shadow">
+                    <i class="fa-solid fa-table-cells mr-2"></i>Matrix Database
+                </button>
+                <button id="tab-game-btn" onclick="switchTab('game')" class="px-4 py-2 rounded-lg font-medium transition-all duration-200 text-slate-400 hover:text-slate-200">
+                    <i class="fa-solid fa-gamepad mr-2"></i>Triage Challenge Game
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- MAIN CONTAINER -->
+    <main class="flex-grow max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6">
+
+        <!-- ==================== VIEW 1: MATRIX DATABASE ==================== -->
+        <section id="view-matrix" class="space-y-6">
+            
+            <!-- FILTER & SEARCH CONTROL BAR -->
+            <div class="bg-slate-950 border border-slate-800 rounded-2xl p-4 sm:p-5 shadow-xl space-y-4">
+                <div class="grid grid-cols-1 md:grid-cols-12 gap-4 items-center">
+                    
+                    <!-- Search Input -->
+                    <div class="md:col-span-5 relative">
+                        <i class="fa-solid fa-magnifying-glass absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500"></i>
+                        <input type="text" id="search-input" oninput="applyFilters()" placeholder="Search scenarios, symptoms, drugs, protocols..." class="w-full bg-slate-900 border border-slate-700 rounded-xl pl-10 pr-4 py-2.5 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition-all">
+                    </div>
+
+                    <!-- Category Filter Dropdown -->
+                    <div class="md:col-span-4 relative">
+                        <select id="category-filter" onchange="applyFilters()" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2.5 text-sm text-slate-100 focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition-all appearance-none cursor-pointer">
+                            <option value="ALL">All Clinical Categories</option>
+                            <option value="Pediatric & Neonatal">Pediatric & Neonatal</option>
+                            <option value="Toxicology & Poisoning">Toxicology & Poisoning</option>
+                            <option value="Trauma & Burns">Trauma & Burns</option>
+                            <option value="OB-GYN Emergencies">OB-GYN Emergencies</option>
+                            <option value="Neurology & Spinal">Neurology & Spinal</option>
+                            <option value="Psychiatric & Behavioral">Psychiatric & Behavioral</option>
+                            <option value="Cardiovascular Emergencies">Cardiovascular Emergencies</option>
+                            <option value="Endocrine & Environmental">Endocrine & Environmental</option>
+                            <option value="Gastrointestinal Emergencies">Gastrointestinal Emergencies</option>
+                        </select>
+                        <i class="fa-solid fa-chevron-down absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none text-xs"></i>
+                    </div>
+
+                    <!-- Severity Filter Buttons -->
+                    <div class="md:col-span-3 flex items-center justify-end space-x-2">
+                        <button onclick="setSeverityFilter('ALL')" id="sev-all" class="sev-filter-btn px-3 py-2 text-xs font-semibold rounded-lg bg-emerald-500 text-slate-950 transition-all">ALL</button>
+                        <button onclick="setSeverityFilter('RED')" id="sev-red" class="sev-filter-btn px-3 py-2 text-xs font-semibold rounded-lg bg-slate-900 text-red-400 border border-red-500/30 hover:bg-red-950/40 transition-all">RED (L1)</button>
+                        <button onclick="setSeverityFilter('YELLOW')" id="sev-yellow" class="sev-filter-btn px-3 py-2 text-xs font-semibold rounded-lg bg-slate-900 text-amber-400 border border-amber-500/30 hover:bg-amber-950/40 transition-all">YELLOW (L2)</button>
+                    </div>
+
+                </div>
+
+                <!-- Active Results Summary Bar -->
+                <div class="flex items-center justify-between text-xs text-slate-400 border-t border-slate-800/80 pt-3">
+                    <div>
+                        Showing <span id="results-count" class="font-bold text-emerald-400">0</span> emergency cases
+                    </div>
+                    <button onclick="resetFilters()" class="hover:text-slate-200 text-slate-400 flex items-center gap-1">
+                        <i class="fa-solid fa-rotate-left"></i> Reset Filters
+                    </button>
+                </div>
+            </div>
+
+            <!-- DATABASE TABLE CONTAINER -->
+            <div class="bg-slate-950 border border-slate-800 rounded-2xl overflow-hidden shadow-xl">
+                <div class="overflow-x-auto custom-scrollbar">
+                    <table class="w-full text-left border-collapse min-w-[1000px]">
+                        <thead>
+                            <tr class="bg-slate-900/90 text-slate-300 uppercase text-[11px] font-bold tracking-wider border-b border-slate-800">
+                                <th class="py-3.5 px-4 w-1/6">Case / Scenario</th>
+                                <th class="py-3.5 px-3 w-28 text-center">Triage Severity</th>
+                                <th class="py-3.5 px-4 w-1/4">Key Symptoms & Clinical Signs</th>
+                                <th class="py-3.5 px-4 w-1/4">Immediate Nursing Action</th>
+                                <th class="py-3.5 px-4 w-1/4">Pharmacotherapy & Med Rules</th>
+                                <th class="py-3.5 px-3 w-28 text-center">Time Target</th>
+                            </tr>
+                        </thead>
+                        <tbody id="matrix-tbody" class="divide-y divide-slate-800/60 text-xs">
+                            <!-- JS Dynamically Populates Matrix Rows -->
+                        </tbody>
+                    </table>
+                </div>
+                <div id="no-results-msg" class="hidden text-center py-12 px-4 text-slate-400">
+                    <i class="fa-solid fa-folder-open text-4xl mb-3 text-slate-600 block"></i>
+                    No emergency scenarios match your active search or filter criteria.
+                </div>
+            </div>
+        </section>
+
+
+        <!-- ==================== VIEW 2: TRIAGE SIMULATION GAME ==================== -->
+        <section id="view-game" class="hidden space-y-6">
+
+            <!-- SCOREBOARD & STATS HEADER -->
+            <div class="bg-slate-950 border border-slate-800 rounded-2xl p-4 sm:p-6 shadow-xl grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
+                <div class="bg-slate-900/80 p-3 rounded-xl border border-slate-800">
+                    <span class="text-xs uppercase tracking-wider text-slate-400 block font-medium">Score</span>
+                    <span id="game-score" class="text-2xl font-extrabold text-emerald-400">0</span>
+                </div>
+                <div class="bg-slate-900/80 p-3 rounded-xl border border-slate-800">
+                    <span class="text-xs uppercase tracking-wider text-slate-400 block font-medium">Streak</span>
+                    <span id="game-streak" class="text-2xl font-extrabold text-amber-400">0 🔥</span>
+                </div>
+                <div class="bg-slate-900/80 p-3 rounded-xl border border-slate-800">
+                    <span class="text-xs uppercase tracking-wider text-slate-400 block font-medium">Accuracy</span>
+                    <span id="game-accuracy" class="text-2xl font-extrabold text-sky-400">100%</span>
+                </div>
+                <div class="bg-slate-900/80 p-3 rounded-xl border border-slate-800">
+                    <span class="text-xs uppercase tracking-wider text-slate-400 block font-medium">Progress</span>
+                    <span id="game-progress" class="text-2xl font-extrabold text-purple-400">0 / 0</span>
+                </div>
+            </div>
+
+            <!-- SIMULATOR CLINICAL CARD -->
+            <div id="simulator-card" class="bg-slate-950 border border-slate-800 rounded-2xl p-6 sm:p-8 shadow-2xl relative overflow-hidden transition-all">
+                
+                <!-- Category Badge & Challenge Counter -->
+                <div class="flex items-center justify-between border-b border-slate-800 pb-4 mb-6">
+                    <span id="sim-category" class="bg-slate-900 text-emerald-400 text-xs px-3 py-1.5 rounded-full border border-emerald-500/20 font-semibold tracking-wide">
+                        CATEGORY
+                    </span>
+                    <span class="text-xs text-slate-400 font-medium">
+                        SCFHS Triage Challenge
+                    </span>
+                </div>
+
+                <!-- Clinical Presentation Scenario Box -->
+                <div class="space-y-4 mb-8">
+                    <h2 id="sim-title" class="text-xl sm:text-2xl font-bold text-white tracking-tight">
+                        Case Title Loading...
+                    </h2>
+                    <div class="bg-slate-900/90 border-l-4 border-emerald-500 p-4 rounded-r-xl">
+                        <p class="text-xs uppercase tracking-wider font-semibold text-emerald-400 mb-1">Presented Symptoms & Clinical Findings</p>
+                        <p id="sim-symptoms" class="text-sm text-slate-200 leading-relaxed font-normal">
+                            Clinical presentation narrative will display here...
+                        </p>
+                    </div>
+                </div>
+
+                <!-- QUESTION STEP 1: TRIAGE LEVEL SELECTION -->
+                <div id="step-triage" class="space-y-4">
+                    <h3 class="text-sm font-semibold text-slate-300 uppercase tracking-wider">
+                        Step 1: Select Immediate SCFHS Triage Level
+                    </h3>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <button onclick="submitTriageAnswer('RED (Immediate / Level 1)')" class="p-4 bg-slate-900 hover:bg-red-950/40 border-2 border-red-500/30 hover:border-red-500 rounded-xl text-left transition-all group">
+                            <div class="flex items-center justify-between">
+                                <span class="font-bold text-red-400 text-base group-hover:translate-x-1 transition-transform">RED — Immediate (Level 1)</span>
+                                <i class="fa-solid fa-truck-medical text-red-400"></i>
+                            </div>
+                            <p class="text-xs text-slate-400 mt-1">Life-threatening instability; immediate resuscitative intervention required (0–15 min).</p>
+                        </button>
+
+                        <button onclick="submitTriageAnswer('YELLOW (Urgent / Level 2)')" class="p-4 bg-slate-900 hover:bg-amber-950/40 border-2 border-amber-500/30 hover:border-amber-500 rounded-xl text-left transition-all group">
+                            <div class="flex items-center justify-between">
+                                <span class="font-bold text-amber-400 text-base group-hover:translate-x-1 transition-transform">YELLOW — Urgent (Level 2)</span>
+                                <i class="fa-solid fa-clock text-amber-400"></i>
+                            </div>
+                            <p class="text-xs text-slate-400 mt-1">Potentially life-threatening or severe pain; urgent evaluation required (15–30 min).</p>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- QUESTION STEP 2: NURSING ACTION / PHARMACOTHERAPY (MULTIPLE CHOICE) -->
+                <div id="step-action" class="hidden space-y-4">
+                    <h3 class="text-sm font-semibold text-slate-300 uppercase tracking-wider">
+                        Step 2: Select Priority Nursing Action or Pharmacotherapy
+                    </h3>
+                    <div id="action-options-container" class="space-y-3">
+                        <!-- JS injects 3 options here -->
+                    </div>
+                </div>
+
+                <!-- FEEDBACK & RATIONALE MODAL PANEL -->
+                <div id="sim-feedback" class="hidden mt-6 pt-6 border-t border-slate-800 space-y-4">
+                    <div id="feedback-banner" class="p-4 rounded-xl flex items-center gap-3">
+                        <!-- JS sets success/error styling and icon -->
+                    </div>
+
+                    <div class="bg-slate-900 p-4 rounded-xl space-y-2 border border-slate-800 text-xs">
+                        <div class="font-bold text-slate-200 uppercase tracking-wider text-[11px] text-emerald-400">Correct Protocol & Clinical Rationale</div>
+                        <p id="rationale-action" class="text-slate-300 leading-relaxed"><strong class="text-white">Action:</strong> ...</p>
+                        <p id="rationale-pharma" class="text-slate-300 leading-relaxed"><strong class="text-white">Medication:</strong> ...</p>
+                        <p id="rationale-time" class="text-slate-300 leading-relaxed"><strong class="text-white">Time Target & Rationale:</strong> ...</p>
+                    </div>
+
+                    <div class="flex justify-end pt-2">
+                        <button onclick="nextQuestion()" class="bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-bold px-6 py-2.5 rounded-xl text-sm transition-all flex items-center gap-2">
+                            Next Scenario <i class="fa-solid fa-arrow-right"></i>
+                        </button>
+                    </div>
+                </div>
+
+            </div>
+        </section>
+
+    </main>
+
+    <!-- FOOTER -->
+    <footer class="bg-slate-950 border-t border-slate-800 py-4 text-center text-xs text-slate-500">
+        SCFHS Clinical Emergency Practice Platform • Designed for Nursing Board & Prometric Prep
+    </footer>
+
+    <!-- SCRIPT DATA & APP LOGIC -->
+    <script>
+        // MASTER EMERGENCY CASES DATABASE
+        const emergencyData = [
+            // Pediatric & Neonatal
+            {
+                id: "PEDS-01",
+                category: "Pediatric & Neonatal",
+                caseTitle: "Croup (Severe Acute Laryngotracheobronchitis)",
+                severity: "RED (Immediate / Level 1)",
+                symptoms: "Barking seal-like cough, inspiratory stridor at rest, intercostal/subcostal retractions, cyanosis, agitation/lethargy.",
+                nursingAction: "Keep child calm in parent's arms (crying worsens airway edema). Administer humidified O2 if SpO2 < 92%. Do NOT perform invasive throat inspection (risk of laryngospasm).",
+                pharmaRules: "Nebulized Racemic Epinephrine 0.5 mL (2.25%) in 3 mL 0.9% NaCl. Dexamethasone 0.6 mg/kg IV/IM/PO (single dose, max 16 mg). Rule: Observe for 2–4 hours post-epinephrine for rebound stridor.",
+                timePriority: "0–10 minutes",
+                rationale: "Subglottic airway narrowing in pediatric patients causes rapid fatigue and complete respiratory arrest if untreated."
+            },
+            {
+                id: "PEDS-02",
+                category: "Pediatric & Neonatal",
+                caseTitle: "Acute Febrile Seizure",
+                severity: "YELLOW (Urgent / Level 2)",
+                symptoms: "Generalized tonic-clonic activity in pediatric patient (6 mos–5 yrs) associated with rapid temperature rise (> 38.5°C), post-ictal confusion.",
+                nursingAction: "Protect airway, turn child to lateral recovery position, clear secretions. Do NOT place objects in mouth or forcibly restrain movements. Monitor seizure duration and oxygenation.",
+                pharmaRules: "Rectal Diazepam 0.2–0.5 mg/kg or Intranasal Midazolam 0.2 mg/kg if seizure lasts > 5 minutes. Paracetamol 15 mg/kg PR/PO or Ibuprofen 10 mg/kg PO once alert to control temperature.",
+                timePriority: "15–30 minutes",
+                rationale: "Seizures lasting > 5 minutes risk progressing to status epilepticus. Primary goal is rapid termination and hypoxemia prevention."
+            },
+            {
+                id: "PEDS-03",
+                category: "Pediatric & Neonatal",
+                caseTitle: "Severe Pediatric Dehydration (Gastroenteritis / Shock)",
+                severity: "RED (Immediate / Level 1)",
+                symptoms: "Sunken fontanelle, absent tears, prolonged capillary refill (> 3s), lethargy/coma, dry mucous membranes, skin turgor tenting.",
+                nursingAction: "Assess consciousness, airway, and perfusion status. Establish immediate IV/IO access. Initiate urgent volume expansion.",
+                pharmaRules: "0.9% Normal Saline IV Fluid Bolus: 20 mL/kg over 10–20 minutes. Repeat up to 3 times (max 60 mL/kg) until perfusion stabilizes. Switch to Oral Rehydration Solution (ORS) 50 mL/kg over 4 hrs once alert.",
+                timePriority: "0–15 minutes",
+                rationale: "Hypovolemic shock develops rapidly in infants due to high body-water turnover; immediate isotonic bolus restores central volume."
+            },
+            {
+                id: "PEDS-04",
+                category: "Pediatric & Neonatal",
+                caseTitle: "Neonatal Sepsis / Hypothermia-Fever Complex",
+                severity: "RED (Immediate / Level 1)",
+                symptoms: "Temperature instability (< 36.5°C or > 38.0°C in < 28-day neonate), poor feeding, lethargy, grunting, tachypnea, jaundice, weak cry.",
+                nursingAction: "Place under radiant warmer; stabilize body temperature. Administer supplemental O2 for respiratory distress. Obtain blood cultures, urine, and CSF lumbar puncture workup per SCFHS protocol.",
+                pharmaRules: "Ampicillin 50 mg/kg IV + Cefotaxime 50 mg/kg IV (or Gentamicin 2.5 mg/kg IV). Rule: Avoid Ceftriaxone in neonates due to hyperbilirubinemia risk.",
+                timePriority: "0–15 minutes",
+                rationale: "Neonatal immune immaturity allows rapid bacterial dissemination leading to septic shock and meningitis within hours."
+            },
+            {
+                id: "PEDS-05",
+                category: "Pediatric & Neonatal",
+                caseTitle: "Pediatric Foreign Body Airway Obstruction (FBAO)",
+                severity: "RED (Immediate / Level 1)",
+                symptoms: "Sudden onset choking, inability to cry/speak, ineffective cough, cyanosis, intercostal retractions.",
+                nursingAction: "Infants (< 1 yr): 5 back blows followed by 5 chest thrusts. Children (> 1 yr): Abdominal thrusts (Heimlich maneuver). If unconscious, begin CPR; inspect oral cavity for visible foreign body before ventilations (NO blind finger sweeps).",
+                pharmaRules: "Supplemental O2 once obstruction is cleared. Prepare for emergent rigid bronchoscopy if partial airway obstruction persists.",
+                timePriority: "0–1 minutes",
+                rationale: "Hypoxic cardiac arrest occurs rapidly in small children. Airway clearance takes priority over all medications."
+            },
+
+            // Toxicology & Poisoning
+            {
+                id: "TOX-01",
+                category: "Toxicology & Poisoning",
+                caseTitle: "Paracetamol (Acetaminophen) Toxicity",
+                severity: "YELLOW (Urgent / Level 2)",
+                symptoms: "Early: Anorexia, nausea, vomiting, diaphoresis. Late (24–72h): RUQ pain, jaundice, elevated ALT/AST, prolonged PT/INR, encephalopathy.",
+                nursingAction: "Determine exact time, dose, and intentionality of ingestion. Draw serum paracetamol level (stat) if > 4 hours post-ingestion. Establish large-bore IV access and monitor baseline liver/renal function.",
+                pharmaRules: "Activated Charcoal 1 g/kg PO (if within 1–2 hours). N-Acetylcysteine (NAC) IV: Loading dose 150 mg/kg over 60 min, then 50 mg/kg over 4 hrs, then 100 mg/kg over 16 hrs. Rule: Start NAC immediately if time > 8 hours without waiting for lab levels.",
+                timePriority: "15–30 minutes",
+                rationale: "Efficacy of N-Acetylcysteine is nearly 100% in preventing fatal hepatotoxicity if initiated within 8 hours of ingestion."
+            },
+            {
+                id: "TOX-02",
+                category: "Toxicology & Poisoning",
+                caseTitle: "Organophosphate / Carbamate Poisoning",
+                severity: "RED (Immediate / Level 1)",
+                symptoms: "DUMBELS toxidrome: Diarrhea, Urination, Miosis (pinpoint pupils), Bradycardia/Bronchospasm/Bronchorrhea, Emesis, Lacrimation, Salivation/Sweating. Garlic odor on breath.",
+                nursingAction: "Decontamination Priority: Remove all contaminated clothing immediately and wash skin with soap and water. PPE mandatory for staff. Maintain open airway, suction excessive secretions, administer 100% high-flow O2.",
+                pharmaRules: "Atropine 2–5 mg IV every 3–5 minutes, doubling dose until bronchorrhea clears. Pralidoxime (2-PAM) 1–2 g IV over 15–30 min (reverses acetylcholinesterase inhibition).",
+                timePriority: "0–5 minutes",
+                rationale: "Profuse pulmonary secretions (bronchorrhea) cause asphyxiation. Decontamination protects staff while Atropine reverses fatal bronchorrhea."
+            },
+            {
+                id: "TOX-03",
+                category: "Toxicology & Poisoning",
+                caseTitle: "Digoxin Toxicity",
+                severity: "RED (Immediate / Level 1)",
+                symptoms: "Visual disturbances (yellow-green halos, xanthopsia), nausea, vomiting, confusion, severe bradycardia, AV blocks, ventricular arrhythmias.",
+                nursingAction: "Place on continuous cardiac monitoring. Obtain stat 12-lead ECG and serum Digoxin, Potassium, and Magnesium levels. Avoid forced diuresis or calcium administration.",
+                pharmaRules: "Digoxin Immune Fab (Digibind/DigiFab) IV (dose based on serum level or ingested mg; give 10 vials empirically if unknown in arrest). Correct hypokalemia. Atropine 0.5–1 mg IV for bradycardia.",
+                timePriority: "0–15 minutes",
+                rationale: "Digoxin-induced ventricular arrhythmias and hyperkalemia (> 5.5 mEq/L) carry high mortality requiring immediate antibody reversal."
+            },
+            {
+                id: "TOX-04",
+                category: "Toxicology & Poisoning",
+                caseTitle: "Carbon Monoxide (CO) Poisoning",
+                severity: "RED (Immediate / Level 1)",
+                symptoms: "Headache, dizziness, nausea, confusion, cherry-red skin (rare/late sign), loss of consciousness, normal SpO2 readings (pulse oximeter false reading).",
+                nursingAction: "Immediate removal from source of exposure. Apply 100% O2 via non-rebreather mask (NRB) immediately. Obtain arterial blood gas (ABG) with carboxyhemoglobin (COHb) panel.",
+                pharmaRules: "100% Oxygen (reduces CO half-life from 320 mins to 80 mins). Prepare for Hyperbaric Oxygen (HBO) therapy if COHb > 25% or in pregnant women (> 15%).",
+                timePriority: "0–5 minutes",
+                rationale: "Standard pulse oximetry cannot distinguish carboxyhemoglobin from oxyhemoglobin; high-flow 100% O2 must be started immediately."
+            },
+            {
+                id: "TOX-05",
+                category: "Toxicology & Poisoning",
+                caseTitle: "Acute Opioid / Sedative Poly-Overdose",
+                severity: "RED (Immediate / Level 1)",
+                symptoms: "Respiratory rate < 8 bpm, pinpoint pupils, severe CNS depression, hypotension, hypothermia.",
+                nursingAction: "Jaw-thrust maneuver and immediate Bag-Valve-Mask (BVM) ventilation with 100% O2. Position in recovery position once airway secure. Insert IV line; monitor continuous ETCO2.",
+                pharmaRules: "Naloxone (Narcan) 0.4–2 mg IV/IM/IN, titrated to restore adequate respirations (not full consciousness). Repeat q2–3min as needed. Rule: Monitor for at least 4 hours post-reversal due to Naloxone short half-life.",
+                timePriority: "0–3 minutes",
+                rationale: "Hypoxic brain injury and respiratory arrest take precedence; rapid BVM ventilation and antidote titration prevent cardiac arrest."
+            },
+
+            // Trauma & Burns
+            {
+                id: "TRM-01",
+                category: "Trauma & Burns",
+                caseTitle: "Tension Pneumothorax",
+                severity: "RED (Immediate / Level 1)",
+                symptoms: "Respiratory distress, unilateral absent breath sounds, tracheal deviation (away from affected side), JVD, hypotension, subcutaneous emphysema.",
+                nursingAction: "Immediate Needle Decompression (14G needle at 2nd ICS midclavicular line or 5th ICS anterior axillary line). Prepare for Chest Tube Thoracostomy (28–36 Fr). Administer 100% O2 via non-rebreather.",
+                pharmaRules: "High-flow O2 at 15 L/min. Tetanus toxoid administration. IV analgesia post-decompression (Fentanyl 25–50 mcg IV).",
+                timePriority: "0–2 minutes",
+                rationale: "Immediate physical decompression precedes chest X-ray; delays lead to decreased venous return, obstructive shock, and cardiac arrest."
+            },
+            {
+                id: "TRM-02",
+                category: "Trauma & Burns",
+                caseTitle: "Open (Sucking) Chest Wound",
+                severity: "RED (Immediate / Level 1)",
+                symptoms: "Sucking chest sound during inspiration, bubbling blood from wound, respiratory distress, tachypnea, asymmetric chest expansion.",
+                nursingAction: "Apply 3-sided occlusive dressing (allows air to escape during expiration but prevents entry on inspiration). Monitor for tension pneumothorax development. Administer high-flow O2 via NRB.",
+                pharmaRules: "IV Opioid analgesia (Morphine 2–4 mg IV). Prophylactic broad-spectrum IV Antibiotics. Tetanus toxoid prophylaxis.",
+                timePriority: "0–5 minutes",
+                rationale: "Converts an open pneumothorax to a controlled status, preventing lung collapse and shift of mediastinal structures."
+            },
+            {
+                id: "TRM-03",
+                category: "Trauma & Burns",
+                caseTitle: "Severe Electrical Burn Injury",
+                severity: "RED (Immediate / Level 1)",
+                symptoms: "Distinct entry/exit skin lesions, severe muscle pain, dark/tea-colored urine (myoglobinuria), cardiac dysrhythmias, hidden deep-tissue necrosis.",
+                nursingAction: "Continuous cardiac monitoring (ECG). Protect cervical spine if secondary fall occurred. Assess peripheral pulses every 15 min (risk of compartment syndrome).",
+                pharmaRules: "High-volume fluid resuscitation: 0.9% Normal Saline or Ringer's Lactate targeted to urine output 1–1.5 mL/kg/hr (75–100 mL/hr in adults). Sodium Bicarbonate IV infusion to alkalinize urine if myoglobinuria present.",
+                timePriority: "0–15 minutes",
+                rationale: "Deep muscle breakdown causes acute tubular necrosis; high-volume diuresis is crucial to clear myoglobin and protect renal function."
+            },
+            {
+                id: "TRM-04",
+                category: "Trauma & Burns",
+                caseTitle: "Traumatic Hemorrhagic Shock (Pelvic / Massive Trauma)",
+                severity: "RED (Immediate / Level 1)",
+                symptoms: "Hypotension (SBP < 90 mmHg), tachycardia (> 120 bpm), pale/clammy skin, altered mental status, pelvic instability or massive blood loss.",
+                nursingAction: "Apply Pelvic Binder / Sheet centered over greater trochanters. Apply direct pressure / tourniquet to active external bleeding. Establish 2 large-bore (14–16G) IV lines or IO access.",
+                pharmaRules: "Initiate Massive Transfusion Protocol (MTP): 1:1:1 ratio of PRBCs, FFP, and Platelets. Tranexamic Acid (TXA) 1 g IV over 10 minutes (within 3 hours of injury). Target permissive hypotension (SBP 80–90 mmHg).",
+                timePriority: "0–10 minutes",
+                rationale: "Uncontrolled hemorrhage leads to the lethal triad (coagulopathy, acidosis, hypothermia); TXA and balanced blood products take priority."
+            },
+
+            // OB-GYN Emergencies
+            {
+                id: "OBG-01",
+                category: "OB-GYN Emergencies",
+                caseTitle: "Abruptio Placentae (Placental Abruption)",
+                severity: "RED (Immediate / Level 1)",
+                symptoms: "Dark red vaginal bleeding (can be concealed), sudden severe uterine pain/tenderness, board-like hypertonic uterus, fetal distress (bradycardia/late decelerations).",
+                nursingAction: "Place mother in left lateral position; apply high-flow O2 (10 L/min via NRB). Establish 2 large-bore (16–18G) IV lines. Continuous FHR and uterine monitoring. Perform stat blood type, crossmatch, and coag profile.",
+                pharmaRules: "Isotonic Crystalloids rapid fluid bolus. Prepare for Massive Transfusion Protocol (MTP). Rule: Strictly avoid vaginal examination until placenta previa is ruled out by ultrasound.",
+                timePriority: "0–5 minutes",
+                rationale: "Premature separation of placenta threatens fetal death from hypoxia and maternal exsanguination/DIC. Emergency C-section preparation is top priority."
+            },
+            {
+                id: "OBG-02",
+                category: "OB-GYN Emergencies",
+                caseTitle: "Umbilical Cord Prolapse",
+                severity: "RED (Immediate / Level 1)",
+                symptoms: "Visible or palpable cord in vagina following membrane rupture, sudden severe fetal bradycardia or recurrent variable decelerations.",
+                nursingAction: "Immediate Relief of Pressure: With gloved hand, insert fingers into vagina and push presenting part UP off the cord; maintain position until delivery. Position mother in Knee-Chest or Trendelenburg. Cover cord with warm sterile saline gauze.",
+                pharmaRules: "Terbutaline 0.25 mg SC (tocolytic to reduce uterine contractions and cord pressure). High-flow O2 at 8–10 L/min via NRB. Rapid IV fluid administration.",
+                timePriority: "0–1 minute",
+                rationale: "Immediate manual relief of cord compression prevents irreversible fetal brain injury or asphyxiation within minutes during STAT C-section transfer."
+            },
+            {
+                id: "OBG-03",
+                category: "OB-GYN Emergencies",
+                caseTitle: "Ruptured Ectopic Pregnancy",
+                severity: "RED (Immediate / Level 1)",
+                symptoms: "Sudden severe unilateral pelvic/lower abdominal pain, referred shoulder pain (Kehr's sign), amenorrhea, vaginal bleeding, signs of hemorrhagic shock (tachycardia, hypotension, syncope).",
+                nursingAction: "Place patient in supine position with legs elevated. Establish 2 large-bore IV lines (16–18G) immediately. Stat bedside ultrasound and serum quantitative beta-hCG. Prepare for emergency laparoscopy/laparotomy.",
+                pharmaRules: "Rapid IV resuscitation with Lactated Ringer's or Normal Saline. Rho(D) Immune Globulin (RhOGAM) within 72 hours if mother is Rh-negative. Transfuse PRBCs as indicated.",
+                timePriority: "0–5 minutes",
+                rationale: "Internal intra-abdominal hemorrhage from tubal rupture leads to rapid exsanguination and hypovolemic shock; operative intervention is definitive care."
+            },
+
+            // Neurology & Spinal
+            {
+                id: "NEU-01",
+                category: "Neurology & Spinal",
+                caseTitle: "Acute Epidural Hematoma (EDH)",
+                severity: "RED (Immediate / Level 1)",
+                symptoms: "Head trauma, brief loss of consciousness followed by 'lucid interval,' rapid neuro decline, ipsilateral blown pupil, contralateral hemiparesis, Cushing's triad.",
+                nursingAction: "Maintain rigid C-spine immobilization. Elevate Head of Bed (HOB) 30° to lower ICP. Maintain head/neck alignment in midline. Prepare for STAT head CT without contrast and emergency craniotomy.",
+                pharmaRules: "Mannitol 20% (0.5–1 g/kg IV) or Hypertonic Saline (3% NaCl IV) for acute herniation signs. Short-acting sedatives (Propofol IV) if intubated. Rule: Target PaCO2 35–40 mmHg.",
+                timePriority: "0–10 minutes",
+                rationale: "Middle meningeal artery laceration causes rapid arterial accumulation. Unchecked ICP leads to uncal herniation and brainstem death within minutes to hours."
+            },
+            {
+                id: "NEU-02",
+                category: "Neurology & Spinal",
+                caseTitle: "Autonomic Dysreflexia (AD)",
+                severity: "RED (Immediate / Level 1)",
+                symptoms: "T6 or higher SCI. Paroxysmal severe hypertension (SBP > 200 mmHg), pounding headache, profuse sweating/flushing above injury level, severe bradycardia, cold skin below injury.",
+                nursingAction: "Immediate Action: Sit patient upright (90°) and dangle legs to lower BP. Loosen tight clothing/binders. Identify and relieve noxious trigger immediately (check Foley catheter for kinks; check for fecal impaction).",
+                pharmaRules: "Antihypertensives if SBP > 150 mmHg: Nifedipine (immediate-release) 10 mg PO/sublingual or Nitroglycerin ointment/paste. Rule: Remove Nitroglycerin paste once BP normalizes.",
+                timePriority: "0–5 minutes",
+                rationale: "Uncontrolled hypertension from noxious stimulation can precipitate intra-cerebral hemorrhage, seizures, retinal detachment, or fatal cardiac arrest."
+            },
+
+            // Psychiatric & Behavioral
+            {
+                id: "PSY-01",
+                category: "Psychiatric & Behavioral",
+                caseTitle: "Acute Psychosis with Severe Agitation",
+                severity: "RED (Immediate / Level 1)",
+                symptoms: "Visual/auditory hallucinations, persecutory delusions, extreme physical restlessness, unpredictable combative behavior, high threat to self/others.",
+                nursingAction: "Ensure environmental safety (clear sharps, unblocked exit for staff). Non-confrontational, low-stimulus de-escalation stance. Initiate 1:1 continuous observation. Call security/crisis team if verbal de-escalation fails.",
+                pharmaRules: "Haloperidol 5 mg IM + Lorazepam 2 mg IM ('5 and 2' combination). Alternative: Olanzapine 10 mg IM or Ziprasidone 10–20 mg IM. Rule: Monitor ECG for QTc prolongation; check airway post-sedation.",
+                timePriority: "0–15 minutes",
+                rationale: "Immediate control of severe agitation prevents physical violence, injury to staff, and acute physiological exhaustion/rhabdomyolysis."
+            },
+            {
+                id: "PSY-02",
+                category: "Psychiatric & Behavioral",
+                caseTitle: "Active Suicidal Intent with Access to Means",
+                severity: "RED (Immediate / Level 1)",
+                symptoms: "Stated explicit intent or attempt to end life, presence of detailed plan and lethal means, severe hopelessness, agitation or sudden deceptive calm.",
+                nursingAction: "Immediate placement on 1:1 continuous direct line-of-sight visual observation. Immediate search and removal of all belongings, ligatures, sharp items, and meds. Escort to safe, dedicated psychiatric triage room.",
+                pharmaRules: "Symptomatic management: Lorazepam 1–2 mg PO/IM for acute panic/anxiety. Rule: Pharmacotherapy serves as an adjunct; 1:1 human surveillance must never be interrupted.",
+                timePriority: "0–5 minutes",
+                rationale: "Patient is at immediate threat of self-harm. Continuous visual observation and environmental risk mitigation eliminate opportunity for suicide attempts."
+            },
+
+            // Cardiovascular Emergencies
+            {
+                id: "CVD-01",
+                category: "Cardiovascular Emergencies",
+                caseTitle: "Acute ST-Elevation Myocardial Infarction (STEMI)",
+                severity: "RED (Immediate / Level 1)",
+                symptoms: "Substernal crushing chest pain radiating to left arm/jaw, diaphoresis, shortness of breath, ST-elevation ≥ 1 mm in 2 contiguous leads on 12-lead ECG.",
+                nursingAction: "Obtain STAT 12-lead ECG (within 10 minutes). Continuous cardiac monitor and pulse oximetry. Apply O2 only if SpO2 < 90%. Establish 2 IV lines; prepare for PCI or fibrinolysis.",
+                pharmaRules: "Aspirin 160–325 mg PO (chewed). Clopidogrel 300–600 mg PO or Ticagrelor 180 mg PO. Sublingual Nitroglycerin 0.4 mg q5min (max 3 doses; avoid in RV infarction). Morphine 2–4 mg IV for refractory pain.",
+                timePriority: "0–10 min (ECG) / <90 min (PCI)",
+                rationale: "Immediate reperfusion halts ongoing myocardial necrosis and prevents ventricular fibrillation."
+            },
+            {
+                id: "CVD-02",
+                category: "Cardiovascular Emergencies",
+                caseTitle: "Acute Aortic Dissection",
+                severity: "RED (Immediate / Level 1)",
+                symptoms: "Sudden onset 'tearing' or 'ripping' chest pain radiating to back, pulse deficit/BP asymmetry between arms (> 20 mmHg), aortic regurgitation murmur, syncope.",
+                nursingAction: "Measure bilateral blood pressures and peripheral pulse symmetry. Establish 2 large-bore (16–18G) IV lines. Strict bedrest in supine position; prepare for emergency CT Angiography (CTA).",
+                pharmaRules: "Esmolol IV infusion or Labetalol IV to reduce heart rate (target HR < 60 bpm) and SBP (100–120 mmHg). Nitroprusside IV (added ONLY AFTER beta-blockade is achieved to prevent reflex tachycardia).",
+                timePriority: "0–15 minutes",
+                rationale: "Uncontrolled hypertension and shear stress cause extension of the intimal tear, leading to fatal aortic rupture, cardiac tamponade, or stroke."
+            },
+
+            // Endocrine & Environmental
+            {
+                id: "END-01",
+                category: "Endocrine & Environmental",
+                caseTitle: "Diabetic Ketoacidosis (DKA)",
+                severity: "RED (Immediate / Level 1)",
+                symptoms: "Hyperglycemia (> 250 mg/dL), Kussmaul respirations, fruity breath odor, severe dehydration, abdominal pain, altered mental status, anion gap metabolic acidosis.",
+                nursingAction: "Establish 2 large-bore IV lines. Continuous cardiac monitoring (K+ shift risk). Hourly blood glucose, urine ketones, and strict I/O via Foley catheter.",
+                pharmaRules: "0.9% Normal Saline IV: 1,000 mL in 1st hour. Potassium Chloride IV: Add to fluids if K+ < 5.2 mEq/L before starting insulin. Regular Insulin IV: 0.1 u/kg bolus, then 0.1 u/kg/hr. Rule: Hold insulin if K+ < 3.3 mEq/L.",
+                timePriority: "0–15 minutes",
+                rationale: "Initial volume expansion restores renal perfusion and lowers glucose; premature insulin administration without K+ stabilization causes lethal hypokalemia."
+            },
+            {
+                id: "END-02",
+                category: "Endocrine & Environmental",
+                caseTitle: "Severe Heatstroke (Exertional / Non-Exertional)",
+                severity: "RED (Immediate / Level 1)",
+                symptoms: "Core body temperature > 40°C (104°F), CNS dysfunction (confusion, ataxia, seizures, coma), anhidrosis or profuse sweating, hypotension, tachypnea.",
+                nursingAction: "Immediate Rapid Cooling: Evaporative cooling or cold-water immersion (target core temp reduction to < 39°C within 30 mins). Continuous rectal probe temp. Protect airway. Stop cooling at 38.5°C to avoid hypothermic overshoot.",
+                pharmaRules: "Rapid IV infusion of 0.9% Normal Saline or Lactated Ringer's (chilled). Benzodiazepines (Lorazepam 2 mg IV) to control shivering/seizures. Rule: Antipyretics strictly contraindicated.",
+                timePriority: "0–5 minutes",
+                rationale: "Cell death, rhabdomyolysis, and multi-organ dysfunction occur exponentially with prolonged hyperthermia. Rapid core cooling is life-saving."
+            },
+
+            // Gastrointestinal Emergencies
+            {
+                id: "GI-01",
+                category: "Gastrointestinal Emergencies",
+                caseTitle: "Acute Upper Gastrointestinal Bleeding",
+                severity: "RED (Immediate / Level 1)",
+                symptoms: "Hematemesis (bright red or 'coffee-ground'), melena, orthostatic dizziness, syncope, tachycardia (> 110 bpm), hypotension (SBP < 90 mmHg).",
+                nursingAction: "Secure airway immediately (aspiration risk). Left lateral / high-Fowler's position. Establish 2 large-bore IV lines (14–16G). Stat type & crossmatch, CBC, coag profile. Prepare for urgent EGD.",
+                pharmaRules: "IV Isotonic Crystalloids. Pantoprazole 80 mg IV bolus, then 8 mg/hr infusion. Octreotide 50 mcg IV bolus, then 50 mcg/hr infusion (variceal). Ceftriaxone 1 g IV prophylactic antibiotic for cirrhotic patients.",
+                timePriority: "0–10 minutes",
+                rationale: "Massive bleeding rapidly precipitates hypovolemic shock and airway compromise. Early Octreotide reduces splanchnic blood flow before endoscopy."
+            },
+            {
+                id: "GI-02",
+                category: "Gastrointestinal Emergencies",
+                caseTitle: "Acute Mesenteric Ischemia",
+                severity: "RED (Immediate / Level 1)",
+                symptoms: "Sudden severe abdominal pain 'out of proportion to physical exam findings,' metabolic acidosis, elevated lactate, vomiting, history of AFib or vascular disease.",
+                nursingAction: "Continuous cardiac and pulse oximetry monitoring. High-flow supplemental oxygen. Establish 2 large-bore IV lines. Stat ABG for lactate. Prepare for emergency CTA abdomen/pelvis or laparotomy.",
+                pharmaRules: "Rapid IV volume expansion with 0.9% Normal Saline. Broad-spectrum IV Antibiotics: Piperacillin-Tazobactam 4.5 g IV. Unfractionated Heparin IV bolus & infusion. IV Opioid analgesia.",
+                timePriority: "0–15 minutes",
+                rationale: "Irreversible intestinal infarction occurs within 6 hours. Severe subjective pain paired with benign early abdominal physical findings requires instant surgical routing."
+            }
+        ];
+
+        // APP STATE VARIABLES
+        let currentFilteredData = [...emergencyData];
+        let currentSeverityFilter = 'ALL';
+        
+        // Game State Variables
+        let gameQueue = [];
+        let currentGameIndex = 0;
+        let score = 0;
+        let streak = 0;
+        let totalAnswered = 0;
+        let correctCount = 0;
+        let selectedTriage = null;
+
+        // INITIALIZATION
+        window.addEventListener('DOMContentLoaded', () => {
+            renderMatrixTable(emergencyData);
+            initGameData();
+        });
+
+        // VIEW SWITCHING LOGIC
+        function switchTab(tab) {
+            const matrixBtn = document.getElementById('tab-matrix-btn');
+            const gameBtn = document.getElementById('tab-game-btn');
+            const matrixView = document.getElementById('view-matrix');
+            const gameView = document.getElementById('view-game');
+
+            if (tab === 'matrix') {
+                matrixView.classList.remove('hidden');
+                gameView.classList.add('hidden');
+                matrixBtn.className = "px-4 py-2 rounded-lg font-medium transition-all duration-200 text-emerald-400 bg-slate-800 shadow";
+                gameBtn.className = "px-4 py-2 rounded-lg font-medium transition-all duration-200 text-slate-400 hover:text-slate-200";
+            } else {
+                matrixView.classList.add('hidden');
+                gameView.classList.remove('hidden');
+                gameBtn.className = "px-4 py-2 rounded-lg font-medium transition-all duration-200 text-emerald-400 bg-slate-800 shadow";
+                matrixBtn.className = "px-4 py-2 rounded-lg font-medium transition-all duration-200 text-slate-400 hover:text-slate-200";
+            }
+        }
+
+        // RENDER MATRIX TABLE
+        function renderMatrixTable(data) {
+            const tbody = document.getElementById('matrix-tbody');
+            const countElem = document.getElementById('results-count');
+            const noResults = document.getElementById('no-results-msg');
+
+            tbody.innerHTML = '';
+            countElem.textContent = data.length;
+
+            if (data.length === 0) {
+                noResults.classList.remove('hidden');
+                return;
+            } else {
+                noResults.classList.add('hidden');
+            }
+
+            data.forEach(item => {
+                const tr = document.createElement('tr');
+                tr.className = "hover:bg-slate-900/60 transition-colors border-b border-slate-800/60";
+
+                const isRed = item.severity.includes('RED');
+                const badgeColor = isRed ? 
+                    'bg-red-950/60 text-red-400 border-red-500/30' : 
+                    'bg-amber-950/60 text-amber-400 border-amber-500/30';
+
+                tr.innerHTML = `
+                    <td class="py-4 px-4 font-semibold text-slate-100">
+                        <div class="text-sm font-bold text-white mb-0.5">${item.caseTitle}</div>
+                        <div class="text-[10px] text-slate-400 uppercase tracking-wider font-medium">${item.category}</div>
+                    </td>
+                    <td class="py-4 px-3 text-center">
+                        <span class="inline-block px-2.5 py-1 text-[10px] font-bold rounded-md border ${badgeColor}">
+                            ${isRed ? 'RED (L1)' : 'YELLOW (L2)'}
+                        </span>
+                    </td>
+                    <td class="py-4 px-4 text-slate-300 leading-relaxed">${item.symptoms}</td>
+                    <td class="py-4 px-4 text-slate-300 leading-relaxed">${item.nursingAction}</td>
+                    <td class="py-4 px-4 text-slate-300 leading-relaxed">${item.pharmaRules}</td>
+                    <td class="py-4 px-3 text-center font-mono font-bold text-emerald-400 text-[11px]">${item.timePriority}</td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        // FILTER & SEARCH LOGIC
+        function applyFilters() {
+            const query = document.getElementById('search-input').value.toLowerCase().trim();
+            const category = document.getElementById('category-filter').value;
+
+            currentFilteredData = emergencyData.filter(item => {
+                const matchesSearch = query === '' || 
+                    item.caseTitle.toLowerCase().includes(query) ||
+                    item.symptoms.toLowerCase().includes(query) ||
+                    item.nursingAction.toLowerCase().includes(query) ||
+                    item.pharmaRules.toLowerCase().includes(query) ||
+                    item.category.toLowerCase().includes(query);
+
+                const matchesCategory = category === 'ALL' || item.category === category;
+                
+                const matchesSeverity = currentSeverityFilter === 'ALL' || 
+                    (currentSeverityFilter === 'RED' && item.severity.includes('RED')) ||
+                    (currentSeverityFilter === 'YELLOW' && item.severity.includes('YELLOW'));
+
+                return matchesSearch && matchesCategory && matchesSeverity;
+            });
+
+            renderMatrixTable(currentFilteredData);
+        }
+
+        function setSeverityFilter(sev) {
+            currentSeverityFilter = sev;
+            
+            // Highlight active button
+            document.querySelectorAll('.sev-filter-btn').forEach(btn => {
+                btn.classList.remove('ring-2', 'ring-emerald-400', 'bg-emerald-500', 'text-slate-950');
+            });
+
+            if (sev === 'ALL') {
+                document.getElementById('sev-all').classList.add('bg-emerald-500', 'text-slate-950');
+            } else if (sev === 'RED') {
+                document.getElementById('sev-red').classList.add('ring-2', 'ring-red-400');
+            } else if (sev === 'YELLOW') {
+                document.getElementById('sev-yellow').classList.add('ring-2', 'ring-amber-400');
+            }
+
+            applyFilters();
+        }
+
+        function resetFilters() {
+            document.getElementById('search-input').value = '';
+            document.getElementById('category-filter').value = 'ALL';
+            setSeverityFilter('ALL');
+        }
+
+        // ================= GAME ENGINE LOGIC =================
+
+        function initGameData() {
+            // Shuffle dataset for random challenge sequence
+            gameQueue = [...emergencyData].sort(() => Math.random() - 0.5);
+            currentGameIndex = 0;
+            score = 0;
+            streak = 0;
+            totalAnswered = 0;
+            correctCount = 0;
+            updateGameHeader();
+            loadScenarioCard();
+        }
+
+        function updateGameHeader() {
+            document.getElementById('game-score').textContent = score;
+            document.getElementById('game-streak').textContent = `${streak} 🔥`;
+            document.getElementById('game-progress').textContent = `${currentGameIndex + 1} / ${gameQueue.length}`;
+            
+            const acc = totalAnswered > 0 ? Math.round((correctCount / totalAnswered) * 100) : 100;
+            document.getElementById('game-accuracy').textContent = `${acc}%`;
+        }
+
+        function loadScenarioCard() {
+            if (currentGameIndex >= gameQueue.length) {
+                // Restart when queue completes
+                gameQueue = [...emergencyData].sort(() => Math.random() - 0.5);
+                currentGameIndex = 0;
+            }
+
+            const current = gameQueue[currentGameIndex];
+
+            // Reset UI states
+            document.getElementById('sim-category').textContent = current.category.toUpperCase();
+            document.getElementById('sim-title').textContent = current.caseTitle;
+            document.getElementById('sim-symptoms').textContent = current.symptoms;
+
+            document.getElementById('step-triage').classList.remove('hidden');
+            document.getElementById('step-action').classList.add('hidden');
+            document.getElementById('sim-feedback').classList.add('hidden');
+
+            selectedTriage = null;
+            updateGameHeader();
+        }
+
+        function submitTriageAnswer(userTriage) {
+            selectedTriage = userTriage;
+            const current = gameQueue[currentGameIndex];
+
+            // Build multiple choice options for Step 2
+            const correctAction = current.nursingAction;
+            
+            // Pick 2 distractor actions from other cases
+            const otherCases = emergencyData.filter(item => item.id !== current.id);
+            const shuffledDistractors = otherCases.sort(() => Math.random() - 0.5);
+            
+            const options = [
+                { text: correctAction, isCorrect: true },
+                { text: shuffledDistractors[0].nursingAction, isCorrect: false },
+                { text: shuffledDistractors[1].nursingAction, isCorrect: false }
+            ].sort(() => Math.random() - 0.5);
+
+            const container = document.getElementById('action-options-container');
+            container.innerHTML = '';
+
+            options.forEach((opt, idx) => {
+                const btn = document.createElement('button');
+                btn.onclick = () => evaluateCompleteAnswer(opt.isCorrect);
+                btn.className = "w-full text-left p-4 bg-slate-900 hover:bg-slate-800 border border-slate-700 hover:border-emerald-500 rounded-xl transition-all text-xs sm:text-sm text-slate-200 leading-relaxed font-medium flex items-start gap-3 group";
+                btn.innerHTML = `
+                    <span class="bg-slate-800 text-emerald-400 font-bold px-2.5 py-1 rounded-lg text-xs group-hover:bg-emerald-500 group-hover:text-slate-950 transition-colors">
+                        ${String.fromCharCode(65 + idx)}
+                    </span>
+                    <span class="flex-grow">${opt.text}</span>
+                `;
+                container.appendChild(btn);
+            });
+
+            // Transition to Step 2
+            document.getElementById('step-triage').classList.add('hidden');
+            document.getElementById('step-action').classList.remove('hidden');
+        }
+
+        function evaluateCompleteAnswer(isActionCorrect) {
+            const current = gameQueue[currentGameIndex];
+            const isTriageCorrect = (selectedTriage.includes('RED') && current.severity.includes('RED')) ||
+                                    (selectedTriage.includes('YELLOW') && current.severity.includes('YELLOW'));
+
+            const isFullyCorrect = isTriageCorrect && isActionCorrect;
+
+            totalAnswered++;
+            if (isFullyCorrect) {
+                correctCount++;
+                score += 100 + (streak * 20);
+                streak++;
+            } else {
+                streak = 0;
+            }
+
+            // Render Feedback Banner
+            const banner = document.getElementById('feedback-banner');
+            if (isFullyCorrect) {
+                banner.className = "p-4 rounded-xl bg-emerald-950/80 border border-emerald-500/50 text-emerald-300 flex items-center gap-3";
+                banner.innerHTML = `
+                    <i class="fa-solid fa-circle-check text-2xl text-emerald-400"></i>
+                    <div>
+                        <div class="font-bold text-sm text-white">Correct Protocol Executed! (+100 pts)</div>
+                        <div class="text-xs text-emerald-300/80">Accurate triage level selection and nursing priority action.</div>
+                    </div>
+                `;
+            } else {
+                banner.className = "p-4 rounded-xl bg-red-950/80 border border-red-500/50 text-red-300 flex items-center gap-3";
+                banner.innerHTML = `
+                    <i class="fa-solid fa-triangle-exclamation text-2xl text-red-400"></i>
+                    <div>
+                        <div class="font-bold text-sm text-white">Clinical Protocol Mismatch</div>
+                        <div class="text-xs text-red-300/80">Review the correct SCFHS guidelines below before proceeding.</div>
+                    </div>
+                `;
+            }
+
+            // Populate Rationales
+            document.getElementById('rationale-action').innerHTML = `<strong class="text-white">Action Protocol:</strong> ${current.nursingAction}`;
+            document.getElementById('rationale-pharma').innerHTML = `<strong class="text-white">Pharmacotherapy Rules:</strong> ${current.pharmaRules}`;
+            document.getElementById('rationale-time').innerHTML = `<strong class="text-white">Time Priority (${current.timePriority}):</strong> ${current.rationale}`;
+
+            // Show Feedback Section
+            document.getElementById('step-action').classList.add('hidden');
+            document.getElementById('sim-feedback').classList.remove('hidden');
+
+            updateGameHeader();
+        }
+
+        function nextQuestion() {
+            currentGameIndex++;
+            loadScenarioCard();
+        }
+    </script>
+</body>
+</html>
